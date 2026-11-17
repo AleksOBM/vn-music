@@ -95,7 +95,7 @@ fun App() {
             val folder = File(lastPath)
             if (folder.exists() && folder.isDirectory) {
                 tracks = folder.walkTopDown()
-                    .filter { it.isFile && it.extension.lowercase() in listOf("mp3", "flac", "ogg", "wav") }
+                    .filter { it.isFile && it.extension.lowercase() in audioExtensions }
                     .map { Track(it) }
                     .sortedBy { it.name.lowercase() }
                     .toList()

@@ -11,17 +11,17 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            implementation(compose.runtime)
-            implementation(compose.foundation)
-            implementation(compose.material3)
-            implementation(compose.ui)
-            implementation(compose.components.resources)
-            implementation(compose.components.uiToolingPreview)
+            implementation("org.jetbrains.compose.runtime:runtime:1.12.2")
+            implementation("org.jetbrains.compose.foundation:foundation:1.12.2")
+            implementation("org.jetbrains.compose.material3:material3:1.9.0")
+            implementation("org.jetbrains.compose.ui:ui:1.12.2")
+            implementation("org.jetbrains.compose.components:components-resources:1.12.2")
+            implementation("org.jetbrains.compose.ui:ui-tooling-preview:1.12.2")
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
         }
         jvmMain.dependencies {
-            implementation(compose.materialIconsExtended)
+            implementation("org.jetbrains.compose.material:material-icons-extended:1.7.3")
             implementation("io.github.kdroidfilter:composemediaplayer-audio:0.11.4")
             implementation(compose.desktop.currentOs)
             implementation(libs.kotlinx.coroutinesSwing)
