@@ -10,7 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.github.kdroidfilter.composemediaplayer.audio.AudioPlayerState
 
-@OptIn(ExperimentalMaterial3Api::class) // Для Tooltip
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlayerControls(
     currentTrackName: String?,
@@ -47,7 +47,9 @@ fun PlayerControls(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     // Кнопка выбора папки с подсказкой
                     TooltipBox(
-                        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
+                            TooltipAnchorPosition.Above
+                        ),
                         tooltip = {
                             PlainTooltip {
                                 Text("Выбрать папку")

@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.dp
 fun CustomSlider(
     value: Float,
     onValueChange: (Float) -> Unit,
-    onValueChangeFinished: (Float) -> Unit, // <-- ИЗМЕНЕНО
+    onValueChangeFinished: (Float) -> Unit,
     valueRange: ClosedFloatingPointRange<Float>,
     modifier: Modifier = Modifier,
     enabled: Boolean = true
@@ -49,7 +49,7 @@ fun CustomSlider(
                     localFraction = newFraction
                     val newValue = valueRange.start + newFraction * range
                     onValueChange(newValue)
-                    onValueChangeFinished(newValue) // <-- передаём значение
+                    onValueChangeFinished(newValue)
                 }
             }
             .pointerInput(enabled) {
@@ -62,7 +62,7 @@ fun CustomSlider(
                     },
                     onDragEnd = {
                         isDragging = false
-                        onValueChangeFinished(valueRange.start + localFraction * range) // <-- передаём значение
+                        onValueChangeFinished(valueRange.start + localFraction * range)
                     },
                     onDragCancel = {
                         isDragging = false

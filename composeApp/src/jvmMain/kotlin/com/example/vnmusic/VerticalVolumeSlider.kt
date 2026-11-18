@@ -28,7 +28,7 @@ fun VerticalVolumeSlider(
     var isDragging by remember { mutableStateOf(false) }
     var localVolume by remember { mutableStateOf(volume) }
 
-    // НОВОЕ: Храним последнее ненулевое значение громкости
+    // Храним последнее ненулевое значение громкости
     var lastNonZeroVolume by remember { mutableStateOf(if (volume > 0f) volume else 1f) }
 
     LaunchedEffect(volume, isDragging) {
