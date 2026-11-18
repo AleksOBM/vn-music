@@ -1,10 +1,10 @@
-/**
- * @fileName App.kt
- */
 package com.example.vnmusic
 
 import androidx.compose.foundation.draganddrop.dragAndDropTarget
 import androidx.compose.foundation.layout.*
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
@@ -23,27 +23,32 @@ import javax.swing.JFileChooser
 fun App() {
     val audioState = rememberAudioPlayerLiveState()
 
-    var volume by remember { mutableStateOf(1f) }
-    var tracks by remember { mutableStateOf<List<Track>>(emptyList()) }
-    var currentTrack by remember { mutableStateOf<Track?>(null) }
-    var sliderPosition by remember { mutableStateOf(0f) }
-    var autoAdvanced by remember { mutableStateOf(false) }
+    var tabs by remember { mutableStateOf<List<PlaylistTab>>(emptyList()) }
+    var activeTabIndex by remember { mutableStateOf(-1) }
 
-    val playerState = audioState.state
-
-    // Синхронизация слайдера
-    LaunchedEffect(audioState.position) {
-        if (playerState == AudioPlayerState.PLAYING || playerState == AudioPlayerState.PAUSED) {
-            sliderPosition = audioState.position.toFloat()
+    LaunchedEffect(Unit) {
+        val loadedTabs = loadTabs()
+        if (loadedTabs.isNotEmpty()) {
+            tabs = loadedTabs
+            activeTabIndex = 0
         }
     }
 
-    // Загрузка последней папки
-    LaunchedEffect(Unit) {
-        loadLastFolder()?.let { lastPath ->
-            loadTracksFromFolder(File(lastPath))?.let { loaded ->
-                tracks = loaded
-            }
+    LaunchedEffect(tabs) {
+        saveTabs(tabs)
+    }
+
+    var volume by remember { mutableStateOf(1f) }
+    var currentTrack by remember { mutableStateOf<Track?>(null) }
+    var sliderPosition by remember { mutableStateOf(0f) }
+    var autoAdvanced by remember { mutableStateOf(false) }
+    val playerState = audioState.state
+
+    val activeTab = tabs.getOrNull(activeTabIndex)
+
+    LaunchedEffect(audioState.position) {
+        if (playerState == AudioPlayerState.PLAYING || playerState == AudioPlayerState.PAUSED) {
+            sliderPosition = audioState.position.toFloat()
         }
     }
 
@@ -55,6 +60,7 @@ fun App() {
     }
 
     fun playNext() {
+        val tracks = activeTab?.tracks ?: return
         val currentIndex = tracks.indexOfFirst { it.path == currentTrack?.path }
         if (currentIndex != -1 && currentIndex < tracks.size - 1) {
             playTrack(tracks[currentIndex + 1])
@@ -62,16 +68,15 @@ fun App() {
     }
 
     fun playPrevious() {
+        val tracks = activeTab?.tracks ?: return
         val currentIndex = tracks.indexOfFirst { it.path == currentTrack?.path }
         if (currentIndex > 0) {
             playTrack(tracks[currentIndex - 1])
         }
     }
 
-    // Автопереход с защитой от двойного срабатывания
     LaunchedEffect(audioState.position, audioState.duration) {
-        val nearEnd = audioState.duration > 0 &&
-                audioState.position >= audioState.duration - 500
+        val nearEnd = audioState.duration > 0 && audioState.position >= audioState.duration - 500
         if (nearEnd && playerState == AudioPlayerState.PLAYING && !autoAdvanced) {
             autoAdvanced = true
             playNext()
@@ -80,16 +85,22 @@ fun App() {
         }
     }
 
+    fun addTabFromFile(file: File) {
+        val newTab = if (file.isDirectory) PlaylistTab.fromFolder(file)
+        else PlaylistTab.fromFile(file)
+        if (newTab != null) {
+            tabs = tabs + newTab
+            activeTabIndex = tabs.size - 1
+        }
+    }
+
     fun chooseAndLoadFolder() {
         val chooser = JFileChooser().apply {
-            fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
-            dialogTitle = "Выберите папку с музыкой"
+            fileSelectionMode = JFileChooser.FILES_AND_DIRECTORIES
+            dialogTitle = "Выберите папку или файл"
         }
         if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
-            loadTracksFromFolder(chooser.selectedFile)?.let { loaded ->
-                tracks = loaded
-                saveLastFolder(chooser.selectedFile.absolutePath)
-            }
+            addTabFromFile(chooser.selectedFile)
         }
     }
 
@@ -97,36 +108,14 @@ fun App() {
         object : DragAndDropTarget {
             override fun onDrop(event: DragAndDropEvent): Boolean {
                 val transferable = event.awtTransferable
-                if (!transferable.isDataFlavorSupported(DataFlavor.javaFileListFlavor)) {
-                    return false
-                }
-
+                if (!transferable.isDataFlavorSupported(DataFlavor.javaFileListFlavor)) return false
                 val files = try {
                     (transferable.getTransferData(DataFlavor.javaFileListFlavor) as? List<*>)
-                        ?.filterIsInstance<File>()
-                        ?: emptyList()
-                } catch (_: Exception) {
-                    emptyList()
-                }
-
+                        ?.filterIsInstance<File>() ?: emptyList()
+                } catch (_: Exception) { emptyList() }
                 val file = files.firstOrNull() ?: return false
-
-                return when {
-                    file.isDirectory -> {
-                        loadTracksFromFolder(file)?.let { loaded ->
-                            tracks = loaded
-                            saveLastFolder(file.absolutePath)
-                        }
-                        true
-                    }
-
-                    file.extension.lowercase() in audioExtensions -> {
-                        playTrack(Track(file))
-                        true
-                    }
-
-                    else -> false
-                }
+                addTabFromFile(file)
+                return true
             }
         }
     }
@@ -138,15 +127,17 @@ fun App() {
             .dragAndDropTarget(
                 shouldStartDragAndDrop = { true },
                 target = dndTarget
-            )
+            ),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        // Панель управления
         PlayerControls(
             currentTrackName = currentTrack?.name,
             duration = audioState.duration,
             position = sliderPosition,
             playerState = playerState,
             volume = volume,
-            hasTracks = tracks.isNotEmpty(),
+            hasTracks = activeTab?.tracks?.isNotEmpty() == true,
             onSeek = { ms -> audioState.player.seekTo(ms) },
             onPositionChange = { sliderPosition = it },
             onPlayPause = {
@@ -169,12 +160,42 @@ fun App() {
             onChooseFolder = { chooseAndLoadFolder() }
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        // Рамка для вкладок и списка песен
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+            shape = MaterialTheme.shapes.medium,
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            tonalElevation = 2.dp
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Вкладки
+                PlaylistTabs(
+                    tabs = tabs,
+                    activeTabIndex = activeTabIndex,
+                    onTabSelected = { activeTabIndex = it },
+                    onTabClosed = { index ->
+                        tabs = tabs.filterIndexed { i, _ -> i != index }
+                        if (activeTabIndex >= tabs.size) {
+                            activeTabIndex = tabs.size - 1
+                        }
+                    }
+                )
 
-        TrackList(
-            tracks = tracks,
-            currentTrack = currentTrack,
-            onTrackClick = { playTrack(it) }
-        )
+                // Разделитель между вкладками и списком песен
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 15.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant
+                )
+
+                // Список треков активной вкладки
+                TrackList(
+                    tracks = activeTab?.tracks ?: emptyList(),
+                    currentTrack = currentTrack,
+                    onTrackClick = { playTrack(it) }
+                )
+            }
+        }
     }
 }
