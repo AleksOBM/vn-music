@@ -51,7 +51,15 @@ fun loadTabs(): List<PlaylistTab> {
                                 )
                             }
                         val files = paths.map(::File)
-                        if (files.size == 1) {
+                        if (files.isEmpty()) {
+                            PlaylistTab(
+                                title = title,
+                                folderPath = null,
+                                filePath = null,
+                                filePaths = emptyList(),
+                                tracks = emptyList()
+                            )
+                        } else if (files.size == 1) {
                             PlaylistTab.fromFile(files.first())?.copy(title = title)
                         } else {
                             PlaylistTab.fromFiles(files, title)

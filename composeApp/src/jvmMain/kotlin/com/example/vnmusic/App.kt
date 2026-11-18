@@ -2,10 +2,9 @@ package com.example.vnmusic
 
 import androidx.compose.foundation.draganddrop.dragAndDropTarget
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
@@ -17,17 +16,24 @@ import androidx.compose.ui.unit.dp
 import com.example.vnmusic.controls.PlayerControls
 import com.example.vnmusic.track.Track
 import com.example.vnmusic.track.TrackList
+import com.example.vnmusic.track.loadTracksFromFolder
 import com.example.vnmusic.tabs.PlaylistTab
 import com.example.vnmusic.tabs.PlaylistTabs
 import com.example.vnmusic.tabs.loadTabs
 import com.example.vnmusic.tabs.saveTabs
+import com.example.vnmusic.track.audioExtensions
 import io.github.kdroidfilter.composemediaplayer.audio.AudioPlayerState
 import io.github.kdroidfilter.composemediaplayer.audio.rememberAudioPlayerLiveState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.awt.datatransfer.DataFlavor
 import java.io.File
-import javax.swing.JFileChooser
+
+private enum class PlaybackMode {
+    REPEAT_PLAYLIST,
+    REPEAT_TRACK,
+    SHUFFLE
+}
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -51,34 +57,32 @@ fun App() {
 
     var volume by remember { mutableStateOf(1f) }
     var currentTrack by remember { mutableStateOf<Track?>(null) }
+    var selectedTrack by remember { mutableStateOf<Track?>(null) }
     var sliderPosition by remember { mutableStateOf(0f) }
-    var autoAdvanced by remember { mutableStateOf(false) }
+    var playbackMode by remember { mutableStateOf(PlaybackMode.REPEAT_PLAYLIST) }
+    var manuallyStopped by remember { mutableStateOf(false) }
+    var awaitingTrackRestart by remember { mutableStateOf(false) }
     var isSeeking by remember { mutableStateOf(false) }
     var seekDuration by remember { mutableStateOf(0L) }
     val seekScope = rememberCoroutineScope()
     val playerState = audioState.state
+    val isSeekingState = rememberUpdatedState(isSeeking)
+    val awaitingTrackRestartState = rememberUpdatedState(awaitingTrackRestart)
 
     val activeTab = tabs.getOrNull(activeTabIndex)
 
-    LaunchedEffect(audioState.position) {
-        if (!isSeeking && (playerState == AudioPlayerState.PLAYING || playerState == AudioPlayerState.PAUSED)) {
-            sliderPosition = audioState.position.toFloat()
-        }
-    }
-
-    LaunchedEffect(audioState.duration) {
-        if (audioState.duration > 0) {
-            seekDuration = audioState.duration
-        }
-    }
-
     fun playTrack(track: Track) {
+        val isSameTrack = currentTrack?.path == track.path
         currentTrack = track
-        audioState.player.play(track.path)
+        selectedTrack = track
         sliderPosition = 0f
-        seekDuration = 0L
+        if (!isSameTrack) {
+            seekDuration = 0L
+        }
+        awaitingTrackRestart = true
         isSeeking = false
-        autoAdvanced = false
+        manuallyStopped = false
+        audioState.player.play(track.path)
     }
 
     fun seekTrack(ms: Long) {
@@ -122,6 +126,11 @@ fun App() {
 
     fun playNext() {
         val tracks = activeTab?.tracks ?: return
+        if (playbackMode == PlaybackMode.SHUFFLE) {
+            val candidates = tracks.filter { it.path != currentTrack?.path }.ifEmpty { tracks }
+            candidates.randomOrNull()?.let(::playTrack)
+            return
+        }
         val currentIndex = tracks.indexOfFirst { it.path == currentTrack?.path }
         if (currentIndex != -1 && currentIndex < tracks.size - 1) {
             playTrack(tracks[currentIndex + 1])
@@ -136,13 +145,60 @@ fun App() {
         }
     }
 
-    LaunchedEffect(audioState.position, audioState.duration) {
-        val nearEnd = audioState.duration > 0 && audioState.position >= audioState.duration - 500
-        if (nearEnd && playerState == AudioPlayerState.PLAYING && !autoAdvanced) {
-            autoAdvanced = true
-            playNext()
-        } else if (!nearEnd) {
-            autoAdvanced = false
+    LaunchedEffect(currentTrack?.path, activeTab?.id, playbackMode, manuallyStopped) {
+        var playbackStarted = false
+        var endHandled = false
+        while (true) {
+            val state = audioState.player.currentPlayerState()
+            val position = audioState.player.currentPosition() ?: 0L
+            val duration = audioState.player.currentDuration() ?: 0L
+
+            if (duration > 0) {
+                seekDuration = duration
+            }
+            if (state == AudioPlayerState.PLAYING) {
+                playbackStarted = true
+                if (awaitingTrackRestartState.value && position <= 1_000L) {
+                    sliderPosition = position.toFloat()
+                    awaitingTrackRestart = false
+                } else if (!awaitingTrackRestartState.value && !isSeekingState.value) {
+                    sliderPosition = position.toFloat()
+                }
+                if (duration > 0 && position < duration - 1_000) {
+                    endHandled = false
+                }
+            } else if (state == AudioPlayerState.PAUSED &&
+                !awaitingTrackRestartState.value && !isSeekingState.value
+            ) {
+                sliderPosition = position.toFloat()
+            }
+
+            val reachedEnd = duration > 0 && position >= duration - 150
+            val playbackFinished = state == AudioPlayerState.IDLE && playbackStarted
+            if (!manuallyStopped && playbackStarted && !endHandled &&
+                (reachedEnd || playbackFinished)
+            ) {
+                endHandled = true
+                val tracks = activeTab?.tracks.orEmpty()
+                val currentIndex = tracks.indexOfFirst { it.path == currentTrack?.path }
+                val nextTrack = when {
+                    playbackMode == PlaybackMode.REPEAT_TRACK -> currentTrack
+                    playbackMode == PlaybackMode.SHUFFLE ->
+                        tracks.filter { it.path != currentTrack?.path }.ifEmpty { tracks }.randomOrNull()
+                    currentIndex >= 0 && currentIndex < tracks.lastIndex -> tracks[currentIndex + 1]
+                    playbackMode == PlaybackMode.REPEAT_PLAYLIST -> tracks.firstOrNull()
+                    else -> null
+                }
+                if (nextTrack != null) {
+                    playbackStarted = false
+                    if (playbackMode == PlaybackMode.REPEAT_TRACK) {
+                        sliderPosition = 0f
+                        awaitingTrackRestart = true
+                    }
+                    playTrack(nextTrack)
+                }
+            }
+            kotlinx.coroutines.delay(100)
         }
     }
 
@@ -185,17 +241,75 @@ fun App() {
         }
     }
 
-    fun chooseAndLoadFolder() {
-        val chooser = JFileChooser().apply {
-            fileSelectionMode = JFileChooser.FILES_AND_DIRECTORIES
-            dialogTitle = "Выберите папку или файл"
+    fun addFilesToActivePlaylist(files: List<File>): Boolean {
+        val tab = tabs.getOrNull(activeTabIndex) ?: return false
+        val droppedTracks = files.flatMap { file ->
+            if (file.isDirectory) {
+                loadTracksFromFolder(file).orEmpty()
+            } else if (file.isFile && file.extension.lowercase() in audioExtensions) {
+                listOf(Track(file))
+            } else {
+                emptyList()
+            }
         }
-        if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
-            addTabFromFile(chooser.selectedFile)
+        if (droppedTracks.isEmpty()) return false
+
+        val tracks = tab.tracks.toMutableList()
+        val paths = tracks.mapTo(mutableSetOf()) { it.path }
+        var existingTrack: Track? = null
+        for (droppedTrack in droppedTracks) {
+            val path = droppedTrack.path
+            val duplicateIndex = tracks.indexOfFirst { it.path == path }
+            if (duplicateIndex >= 0) {
+                if (existingTrack == null) existingTrack = tracks[duplicateIndex]
+            } else if (paths.add(path)) {
+                tracks += droppedTrack
+            }
+        }
+
+        if (tracks.size != tab.tracks.size) {
+            val updatedTab = tab.copy(
+                folderPath = null,
+                filePath = tracks.firstOrNull()?.path,
+                filePaths = tracks.map { it.path },
+                tracks = tracks
+            )
+            tabs = tabs.toMutableList().also { it[activeTabIndex] = updatedTab }
+        }
+        existingTrack?.let { selectedTrack = it }
+        return true
+    }
+
+    fun removeTrackFromActivePlaylist(track: Track) {
+        val tab = tabs.getOrNull(activeTabIndex) ?: return
+        val remainingTracks = tab.tracks.filterNot { it.path == track.path }
+        if (remainingTracks.size == tab.tracks.size) return
+
+        tabs = tabs.toMutableList().also { updatedTabs ->
+            updatedTabs[activeTabIndex] = tab.copy(
+                folderPath = null,
+                filePath = remainingTracks.firstOrNull()?.path,
+                filePaths = remainingTracks.map { it.path },
+                tracks = remainingTracks
+            )
+        }
+        if (selectedTrack?.path == track.path) {
+            selectedTrack = null
         }
     }
 
-    val dndTarget = remember {
+    val tabsDropHandler = rememberUpdatedState(newValue = { files: List<File> ->
+        val droppedFolders = files.filter { it.isDirectory }
+        droppedFolders.asReversed().forEach { addTabFromFile(it, addToStart = true) }
+
+        val droppedFiles = files.filter { it.isFile }
+        if (droppedFiles.isNotEmpty()) addFilesAsPlaylist(droppedFiles)
+        droppedFolders.isNotEmpty() || droppedFiles.isNotEmpty()
+    })
+    val tracksDropHandler = rememberUpdatedState(newValue = { files: List<File> ->
+        addFilesToActivePlaylist(files)
+    })
+    val tabsDropTarget = remember {
         object : DragAndDropTarget {
             override fun onDrop(event: DragAndDropEvent): Boolean {
                 val transferable = event.awtTransferable
@@ -203,16 +317,25 @@ fun App() {
                 val files = try {
                     (transferable.getTransferData(DataFlavor.javaFileListFlavor) as? List<*>)
                         ?.filterIsInstance<File>() ?: emptyList()
-                } catch (_: Exception) { emptyList() }
-                val droppedFolders = files.filter { it.isDirectory }
-                droppedFolders.asReversed().forEach { addTabFromFile(it, addToStart = true) }
-
-                val droppedFiles = files.filter { it.isFile }
-                if (droppedFiles.isNotEmpty()) {
-                    addFilesAsPlaylist(droppedFiles)
+                } catch (_: Exception) {
+                    emptyList()
                 }
-                if (droppedFolders.isEmpty() && droppedFiles.isEmpty()) return false
-                return true
+                return tabsDropHandler.value(files)
+            }
+        }
+    }
+    val tracksDropTarget = remember {
+        object : DragAndDropTarget {
+            override fun onDrop(event: DragAndDropEvent): Boolean {
+                val transferable = event.awtTransferable
+                if (!transferable.isDataFlavorSupported(DataFlavor.javaFileListFlavor)) return false
+                val files = try {
+                    (transferable.getTransferData(DataFlavor.javaFileListFlavor) as? List<*>)
+                        ?.filterIsInstance<File>() ?: emptyList()
+                } catch (_: Exception) {
+                    emptyList()
+                }
+                return tracksDropHandler.value(files)
             }
         }
     }
@@ -220,11 +343,7 @@ fun App() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(12.dp)
-            .dragAndDropTarget(
-                shouldStartDragAndDrop = { true },
-                target = dndTarget
-            ),
+            .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         // Панель управления
@@ -234,6 +353,9 @@ fun App() {
             position = sliderPosition,
             playerState = playerState,
             volume = volume,
+            shuffleEnabled = playbackMode == PlaybackMode.SHUFFLE,
+            repeatTrack = playbackMode == PlaybackMode.REPEAT_TRACK,
+            repeatPlaylist = playbackMode == PlaybackMode.REPEAT_PLAYLIST,
             hasTracks = activeTab?.tracks?.isNotEmpty() == true,
             onSeek = ::seekTrack,
             onPositionChange = { position ->
@@ -244,12 +366,13 @@ fun App() {
                 when (playerState) {
                     AudioPlayerState.PLAYING -> audioState.player.pause()
                     AudioPlayerState.PAUSED -> audioState.player.play()
-                    else -> currentTrack?.let { audioState.player.play(it.path) }
+                    else -> currentTrack?.let { playTrack(it) }
                 }
             },
             onNext = { playNext() },
             onPrevious = { playPrevious() },
             onStop = {
+                manuallyStopped = true
                 audioState.player.stop()
                 sliderPosition = 0f
             },
@@ -257,20 +380,23 @@ fun App() {
                 volume = value
                 audioState.player.setVolume(value)
             },
-            onChooseFolder = { chooseAndLoadFolder() }
+            onToggleShuffle = { playbackMode = PlaybackMode.SHUFFLE },
+            onToggleRepeatTrack = { playbackMode = PlaybackMode.REPEAT_TRACK },
+            onToggleRepeatPlaylist = { playbackMode = PlaybackMode.REPEAT_PLAYLIST }
         )
 
-        // Рамка для вкладок и списка песен
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f),
+                .dragAndDropTarget(
+                    shouldStartDragAndDrop = { true },
+                    target = tabsDropTarget
+                ),
             shape = MaterialTheme.shapes.medium,
             color = MaterialTheme.colorScheme.surfaceVariant,
             tonalElevation = 2.dp
         ) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                // Вкладки
+            if (tabs.isNotEmpty()) {
                 PlaylistTabs(
                     tabs = tabs,
                     activeTabIndex = activeTabIndex,
@@ -279,44 +405,49 @@ fun App() {
                         tabs = tabs.filterIndexed { i, _ -> i != index }
                         if (activeTabIndex >= tabs.size) {
                             activeTabIndex = tabs.size - 1
+                        } else if (index < activeTabIndex) {
+                            activeTabIndex--
+                        }
+                    },
+                    onTabRenamed = { index, title ->
+                        tabs = tabs.mapIndexed { i, tab ->
+                            if (i == index) tab.copy(title = title) else tab
                         }
                     }
                 )
-
-                // Эффектный разделитель между вкладками и списком песен
-                Row(
+            } else {
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(vertical = 18.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    HorizontalDivider(
-                        modifier = Modifier.weight(1f),
-                        thickness = 2.dp,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
-                    )
-                    Surface(
-                        modifier = Modifier
-                            .padding(horizontal = 8.dp)
-                            .size(8.dp),
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primary,
-                        tonalElevation = 4.dp
-                    ) {}
-                    HorizontalDivider(
-                        modifier = Modifier.weight(1f),
-                        thickness = 2.dp,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
+                    Text(
+                        text = "Перетащите папку или файлы сюда",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-
-                // Список треков активной вкладки
-                TrackList(
-                    tracks = activeTab?.tracks ?: emptyList(),
-                    currentTrack = currentTrack,
-                    onTrackClick = { playTrack(it) }
-                )
             }
+        }
+
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .dragAndDropTarget(
+                    shouldStartDragAndDrop = { true },
+                    target = tracksDropTarget
+                ),
+            shape = MaterialTheme.shapes.medium,
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            tonalElevation = 2.dp
+        ) {
+            TrackList(
+                tracks = activeTab?.tracks ?: emptyList(),
+                selectedTrack = selectedTrack,
+                onTrackClick = { playTrack(it) },
+                onTrackRemove = ::removeTrackFromActivePlaylist
+            )
         }
     }
 }

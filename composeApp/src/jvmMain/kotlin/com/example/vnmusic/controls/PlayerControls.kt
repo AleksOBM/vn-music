@@ -10,6 +10,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.vnmusic.sliders.CustomSlider
 import com.example.vnmusic.sliders.VerticalVolumeSlider
@@ -24,6 +25,9 @@ fun PlayerControls(
     position: Float,
     playerState: AudioPlayerState,
     volume: Float,
+    shuffleEnabled: Boolean,
+    repeatTrack: Boolean,
+    repeatPlaylist: Boolean,
     hasTracks: Boolean,
     onSeek: (Long) -> Unit,
     onPositionChange: (Float) -> Unit,
@@ -32,7 +36,9 @@ fun PlayerControls(
     onPrevious: () -> Unit,
     onStop: () -> Unit,
     onVolumeChange: (Float) -> Unit,
-    onChooseFolder: () -> Unit
+    onToggleShuffle: () -> Unit,
+    onToggleRepeatTrack: () -> Unit,
+    onToggleRepeatPlaylist: () -> Unit
 ) {
     val isPlaying = playerState == AudioPlayerState.PLAYING
     val isActive = isPlaying || playerState == AudioPlayerState.PAUSED
@@ -47,39 +53,56 @@ fun PlayerControls(
             modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // ЛЕВАЯ ЧАСТЬ
-            Column(modifier = Modifier.weight(1f)) {
-                // Верхняя строка: иконка папки + название трека
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Кнопка выбора папки с подсказкой
-                    TooltipBox(
-                        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
-                            TooltipAnchorPosition.Above
-                        ),
-                        tooltip = {
-                            PlainTooltip {
-                                Text("Выбрать папку")
-                            }
-                        },
-                        state = rememberTooltipState()
-                    ) {
-                        IconButton(onClick = onChooseFolder) {
-                            Icon(
-                                imageVector = Icons.Default.FolderOpen,
-                                contentDescription = "Выбрать папку",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.width(4.dp))
-
-                    Text(
-                        text = currentTrackName ?: "Не выбран",
-                        style = MaterialTheme.typography.titleMedium,
-                        maxLines = 1
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                IconButton(
+                    onClick = onToggleShuffle,
+                    enabled = hasTracks
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Shuffle,
+                        contentDescription = "Случайный порядок",
+                        tint = if (shuffleEnabled) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                IconButton(
+                    onClick = onToggleRepeatTrack,
+                    enabled = currentTrackName != null
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.RepeatOne,
+                        contentDescription = "Повторять трек",
+                        tint = if (repeatTrack) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                IconButton(
+                    onClick = onToggleRepeatPlaylist,
+                    enabled = hasTracks
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Repeat,
+                        contentDescription = "Повторять плейлист",
+                        tint = if (repeatPlaylist) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // Единый блок названия трека, перемотки и кнопок без отдельной рамки.
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = currentTrackName ?: "Не выбран",
+                    modifier = Modifier.fillMaxWidth(),
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
 
                 // Слайдер перемотки (показываем всегда)
                 Row(verticalAlignment = Alignment.CenterVertically) {
