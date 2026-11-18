@@ -28,6 +28,9 @@ fun CustomSlider(
 ) {
     val range = valueRange.endInclusive - valueRange.start
     val fraction = if (range > 0f) ((value - valueRange.start) / range).coerceIn(0f, 1f) else 0f
+    val activeColor = if (enabled) Color(0xFF6750A4) else Color.Gray.copy(alpha = 0.55f)
+    val inactiveColor = if (enabled) Color.LightGray.copy(alpha = 0.4f)
+    else Color.Gray.copy(alpha = 0.25f)
 
     var isDragging by remember { mutableStateOf(false) }
     var localFraction by remember { mutableStateOf(fraction) }
@@ -82,7 +85,7 @@ fun CustomSlider(
                 .fillMaxWidth()
                 .height(6.dp)
                 .clip(RoundedCornerShape(3.dp))
-                .background(Color.LightGray.copy(alpha = 0.4f))
+                .background(inactiveColor)
         )
 
         // Активная дорожка
@@ -91,7 +94,7 @@ fun CustomSlider(
                 .fillMaxWidth(localFraction)
                 .height(6.dp)
                 .clip(RoundedCornerShape(3.dp))
-                .background(Color(0xFF6750A4))
+                .background(activeColor)
         )
 
         // Бегунок
@@ -104,7 +107,7 @@ fun CustomSlider(
                 modifier = Modifier
                     .size(16.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFF6750A4))
+                    .background(activeColor)
             )
         }
     }

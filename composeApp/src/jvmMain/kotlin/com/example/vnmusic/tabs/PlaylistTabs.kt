@@ -1,3 +1,6 @@
+/**
+ * @fileName PlaylistTabs.kt
+ */
 package com.example.vnmusic.tabs
 
 import androidx.compose.foundation.clickable
@@ -100,7 +103,7 @@ fun PlaylistTabs(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Close,
-                                    contentDescription = "Закрыть вкладку",
+                                    contentDescription = "Close tab",
                                     modifier = Modifier.size(12.dp)
                                 )
                             }
@@ -112,7 +115,7 @@ fun PlaylistTabs(
                         onDismissRequest = { menuTabIndex = null }
                     ) {
                         DropdownMenuItem(
-                            text = { Text("Переименовать") },
+                            text = { Text("Rename") },
                             onClick = {
                                 editedTitle = tab.title
                                 editingTabIndex = index
@@ -128,13 +131,13 @@ fun PlaylistTabs(
         if (indexBeingEdited != null) {
             AlertDialog(
                 onDismissRequest = { editingTabIndex = null },
-                title = { Text("Переименовать вкладку") },
+                title = { Text("Rename tab") },
                 text = {
                     TextField(
                         value = editedTitle,
                         onValueChange = { editedTitle = it },
                         singleLine = true,
-                        label = { Text("Название") }
+                        label = { Text("Name") }
                     )
                 },
                 confirmButton = {
@@ -148,12 +151,12 @@ fun PlaylistTabs(
                         },
                         enabled = editedTitle.isNotBlank()
                     ) {
-                        Text("Сохранить")
+                        Text("Save")
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { editingTabIndex = null }) {
-                        Text("Отмена")
+                        Text("Cancel")
                     }
                 }
             )

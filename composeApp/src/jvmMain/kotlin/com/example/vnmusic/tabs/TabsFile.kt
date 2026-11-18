@@ -1,8 +1,11 @@
+/**
+ * @fileName TabsFile.kt
+ */
 package com.example.vnmusic.tabs
 
 import java.io.File
 import java.nio.charset.StandardCharsets
-import java.util.Base64
+import java.util.*
 
 private val tabsFile = File(System.getProperty("user.home"), ".vnmusic_tabs.txt")
 
@@ -21,7 +24,8 @@ fun saveTabs(tabs: List<PlaylistTab>) {
             }
         }
         tabsFile.writeText(lines.joinToString("\n"))
-    } catch (_: Exception) {}
+    } catch (_: Exception) {
+    }
 }
 
 fun loadTabs(): List<PlaylistTab> {
@@ -33,6 +37,7 @@ fun loadTabs(): List<PlaylistTab> {
                     val path = line.removePrefix("FOLDER:")
                     PlaylistTab.fromFolder(File(path))
                 }
+
                 line.startsWith("FILE:") -> {
                     val value = line.removePrefix("FILE:")
                     val parts = value.split(":", limit = 2)
@@ -40,6 +45,9 @@ fun loadTabs(): List<PlaylistTab> {
                         val title = String(
                             Base64.getDecoder().decode(parts[0]),
                             StandardCharsets.UTF_8
+                        ).replace(
+                            Regex("""^Новый плейлист (\d+)$"""),
+                            "New playlist $1"
                         )
                         val paths = parts[1]
                             .split(",")
@@ -50,8 +58,7 @@ fun loadTabs(): List<PlaylistTab> {
                                     StandardCharsets.UTF_8
                                 )
                             }
-                        val files = paths.map(::File)
-                        if (files.isEmpty()) {
+                        if (paths.isEmpty()) {
                             PlaylistTab(
                                 title = title,
                                 folderPath = null,
@@ -59,15 +66,15 @@ fun loadTabs(): List<PlaylistTab> {
                                 filePaths = emptyList(),
                                 tracks = emptyList()
                             )
-                        } else if (files.size == 1) {
-                            PlaylistTab.fromFile(files.first())?.copy(title = title)
                         } else {
-                            PlaylistTab.fromFiles(files, title)
+                            PlaylistTab.fromLocations(paths, title)
                         }
                     } else {
-                        PlaylistTab.fromFile(File(value))
+                        PlaylistTab.fromLocations(
+                            listOf(value), File(value).nameWithoutExtension)
                     }
                 }
+
                 else -> null
             }
         }

@@ -52,7 +52,7 @@ fun VerticalVolumeSlider(
         Box(
             modifier = Modifier
                 .width(24.dp)
-                .height(80.dp) // Уменьшили высоту
+                .height(80.dp)
                 .pointerInput(true) {
                     detectVerticalDragGestures(
                         onDragStart = { isDragging = true },
@@ -104,7 +104,7 @@ fun VerticalVolumeSlider(
             }
         }
 
-        Spacer(modifier = Modifier.height(4.dp)) // Уменьшили отступ
+        Spacer(modifier = Modifier.height(4.dp))
 
         // Кнопка Mute
         IconButton(

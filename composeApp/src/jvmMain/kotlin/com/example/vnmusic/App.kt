@@ -1,3 +1,6 @@
+/**
+ * @fileName App.kt
+ */
 package com.example.vnmusic
 
 import androidx.compose.foundation.draganddrop.dragAndDropTarget
@@ -14,20 +17,24 @@ import androidx.compose.ui.draganddrop.DragAndDropTarget
 import androidx.compose.ui.draganddrop.awtTransferable
 import androidx.compose.ui.unit.dp
 import com.example.vnmusic.controls.PlayerControls
-import com.example.vnmusic.track.Track
-import com.example.vnmusic.track.TrackList
-import com.example.vnmusic.track.loadTracksFromFolder
 import com.example.vnmusic.tabs.PlaylistTab
 import com.example.vnmusic.tabs.PlaylistTabs
 import com.example.vnmusic.tabs.loadTabs
 import com.example.vnmusic.tabs.saveTabs
+import com.example.vnmusic.track.Track
+import com.example.vnmusic.track.TrackList
 import com.example.vnmusic.track.audioExtensions
+import com.example.vnmusic.track.loadTracksFromFolder
 import io.github.kdroidfilter.composemediaplayer.audio.AudioPlayerState
 import io.github.kdroidfilter.composemediaplayer.audio.rememberAudioPlayerLiveState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.awt.datatransfer.DataFlavor
 import java.io.File
+import java.io.InputStream
+import java.io.Reader
+import java.net.URL
+import kotlin.time.Duration.Companion.milliseconds
 
 private enum class PlaybackMode {
     REPEAT_PLAYLIST,
@@ -35,7 +42,52 @@ private enum class PlaybackMode {
     SHUFFLE
 }
 
+private data class DroppedMedia(
+    val files: List<File>,
+    val urls: List<String>
+)
+
 @OptIn(ExperimentalComposeUiApi::class)
+private fun extractDroppedMedia(event: DragAndDropEvent): DroppedMedia {
+    val transferable = event.awtTransferable
+    val files = if (transferable.isDataFlavorSupported(DataFlavor.javaFileListFlavor)) {
+        runCatching {
+            (transferable.getTransferData(DataFlavor.javaFileListFlavor) as? List<*>)
+                ?.filterIsInstance<File>()
+                .orEmpty()
+        }.getOrDefault(emptyList())
+    } else {
+        emptyList()
+    }
+
+    val urlRegex = Regex("""https?://[^\s<>"']+""", RegexOption.IGNORE_CASE)
+    val urls = transferable.transferDataFlavors
+        .filter { flavor ->
+            flavor.isMimeTypeEqual("text/uri-list") ||
+                    flavor.isMimeTypeEqual("text/plain") ||
+                    flavor.isMimeTypeEqual("text/x-moz-url") ||
+                    flavor.isMimeTypeEqual("application/x-moz-url") ||
+                    flavor.isMimeTypeEqual("application/x-java-url")
+        }
+        .flatMap { flavor ->
+            val text = runCatching {
+                when (val value = transferable.getTransferData(flavor)) {
+                    is String -> value
+                    is URL -> value.toExternalForm()
+                    is InputStream -> value.bufferedReader().use { it.readText() }
+                    is Reader -> value.use { it.readText() }
+                    else -> value.toString()
+                }
+            }.getOrNull().orEmpty()
+            urlRegex.findAll(text).map { match ->
+                match.value.trimEnd('.', ',', ';', ')', ']', '}')
+            }.toList()
+        }
+        .distinct()
+
+    return DroppedMedia(files, urls)
+}
+
 @Composable
 fun App() {
     val audioState = rememberAudioPlayerLiveState()
@@ -98,15 +150,17 @@ fun App() {
             if (track.path.substringAfterLast('.', "").lowercase() == "flac") {
                 audioState.player.stop()
                 audioState.player.play(track.path)
-                for (attempt in 0 until 30) {
+                var attempts = 0
+                while (attempts < 30) {
                     val state = audioState.player.currentPlayerState()
                     if (state == AudioPlayerState.PLAYING || state == AudioPlayerState.PAUSED) {
                         break
                     }
-                    delay(100)
+                    delay(100.milliseconds)
+                    attempts++
                 }
                 audioState.player.seekTo(target)
-                delay(80)
+                delay(80.milliseconds)
                 audioState.player.seekTo(target)
                 if (wasPaused) {
                     audioState.player.pause()
@@ -115,11 +169,11 @@ fun App() {
                 }
             } else {
                 audioState.player.seekTo(target)
-                delay(80)
+                delay(80.milliseconds)
                 audioState.player.seekTo(target)
             }
             sliderPosition = target.toFloat()
-            delay(120)
+            delay(120.milliseconds)
             isSeeking = false
         }
     }
@@ -185,6 +239,7 @@ fun App() {
                     playbackMode == PlaybackMode.REPEAT_TRACK -> currentTrack
                     playbackMode == PlaybackMode.SHUFFLE ->
                         tracks.filter { it.path != currentTrack?.path }.ifEmpty { tracks }.randomOrNull()
+
                     currentIndex >= 0 && currentIndex < tracks.lastIndex -> tracks[currentIndex + 1]
                     playbackMode == PlaybackMode.REPEAT_PLAYLIST -> tracks.firstOrNull()
                     else -> null
@@ -198,13 +253,13 @@ fun App() {
                     playTrack(nextTrack)
                 }
             }
-            kotlinx.coroutines.delay(100)
+            delay(100.milliseconds)
         }
     }
 
     fun nextPlaylistNumber(): Int = tabs
         .mapNotNull { tab ->
-            Regex("""Новый плейлист (\d+)""")
+            Regex("""New playlist (\d+)""")
                 .matchEntire(tab.title)
                 ?.groupValues
                 ?.get(1)
@@ -221,7 +276,7 @@ fun App() {
             val playlistNumber = nextPlaylistNumber()
 
             PlaylistTab.fromFile(file)?.copy(
-                title = "Новый плейлист $playlistNumber"
+                title = "New playlist $playlistNumber"
             )
         }
         if (newTab != null) {
@@ -230,10 +285,13 @@ fun App() {
         }
     }
 
-    fun addFilesAsPlaylist(files: List<File>) {
-        val newTab = PlaylistTab.fromFiles(
-            files = files,
-            title = "Новый плейлист ${nextPlaylistNumber()}"
+    fun addMediaAsPlaylist(files: List<File>, urls: List<String>) {
+        val locations = files
+            .filter { it.isFile && it.extension.lowercase() in audioExtensions }
+            .map { it.absolutePath } + urls
+        val newTab = PlaylistTab.fromLocations(
+            locations = locations,
+            title = "New playlist ${nextPlaylistNumber()}"
         )
         if (newTab != null) {
             tabs = listOf(newTab) + tabs
@@ -241,7 +299,7 @@ fun App() {
         }
     }
 
-    fun addFilesToActivePlaylist(files: List<File>): Boolean {
+    fun addMediaToActivePlaylist(files: List<File>, urls: List<String>): Boolean {
         val tab = tabs.getOrNull(activeTabIndex) ?: return false
         val droppedTracks = files.flatMap { file ->
             if (file.isDirectory) {
@@ -251,7 +309,7 @@ fun App() {
             } else {
                 emptyList()
             }
-        }
+        } + urls.mapNotNull { Track.fromUrl(it) }
         if (droppedTracks.isEmpty()) return false
 
         val tracks = tab.tracks.toMutableList()
@@ -298,44 +356,32 @@ fun App() {
         }
     }
 
-    val tabsDropHandler = rememberUpdatedState(newValue = { files: List<File> ->
-        val droppedFolders = files.filter { it.isDirectory }
+    val tabsDropHandler = rememberUpdatedState(newValue = { media: DroppedMedia ->
+        val droppedFolders = media.files.filter { it.isDirectory }
         droppedFolders.asReversed().forEach { addTabFromFile(it, addToStart = true) }
 
-        val droppedFiles = files.filter { it.isFile }
-        if (droppedFiles.isNotEmpty()) addFilesAsPlaylist(droppedFiles)
-        droppedFolders.isNotEmpty() || droppedFiles.isNotEmpty()
+        val droppedFiles = media.files.filter { it.isFile }
+        if (droppedFiles.isNotEmpty() || media.urls.isNotEmpty()) {
+            addMediaAsPlaylist(droppedFiles, media.urls)
+        }
+        droppedFolders.isNotEmpty() || droppedFiles.isNotEmpty() || media.urls.isNotEmpty()
     })
-    val tracksDropHandler = rememberUpdatedState(newValue = { files: List<File> ->
-        addFilesToActivePlaylist(files)
+    val tracksDropHandler = rememberUpdatedState(newValue = { media: DroppedMedia ->
+        addMediaToActivePlaylist(media.files, media.urls)
     })
     val tabsDropTarget = remember {
         object : DragAndDropTarget {
             override fun onDrop(event: DragAndDropEvent): Boolean {
-                val transferable = event.awtTransferable
-                if (!transferable.isDataFlavorSupported(DataFlavor.javaFileListFlavor)) return false
-                val files = try {
-                    (transferable.getTransferData(DataFlavor.javaFileListFlavor) as? List<*>)
-                        ?.filterIsInstance<File>() ?: emptyList()
-                } catch (_: Exception) {
-                    emptyList()
-                }
-                return tabsDropHandler.value(files)
+                val media = extractDroppedMedia(event)
+                return tabsDropHandler.value(media)
             }
         }
     }
     val tracksDropTarget = remember {
         object : DragAndDropTarget {
             override fun onDrop(event: DragAndDropEvent): Boolean {
-                val transferable = event.awtTransferable
-                if (!transferable.isDataFlavorSupported(DataFlavor.javaFileListFlavor)) return false
-                val files = try {
-                    (transferable.getTransferData(DataFlavor.javaFileListFlavor) as? List<*>)
-                        ?.filterIsInstance<File>() ?: emptyList()
-                } catch (_: Exception) {
-                    emptyList()
-                }
-                return tracksDropHandler.value(files)
+                val media = extractDroppedMedia(event)
+                return tracksDropHandler.value(media)
             }
         }
     }
@@ -343,8 +389,8 @@ fun App() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         // Панель управления
         PlayerControls(
@@ -353,6 +399,7 @@ fun App() {
             position = sliderPosition,
             playerState = playerState,
             volume = volume,
+            isRadio = currentTrack?.streamUrl != null,
             shuffleEnabled = playbackMode == PlaybackMode.SHUFFLE,
             repeatTrack = playbackMode == PlaybackMode.REPEAT_TRACK,
             repeatPlaylist = playbackMode == PlaybackMode.REPEAT_PLAYLIST,
@@ -423,7 +470,7 @@ fun App() {
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Перетащите папку или файлы сюда",
+                        text = "Drop folders or files here",
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }

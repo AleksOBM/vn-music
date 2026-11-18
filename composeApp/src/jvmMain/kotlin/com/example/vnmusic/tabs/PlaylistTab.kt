@@ -35,18 +35,25 @@ data class PlaylistTab(
             )
         }
 
-        fun fromFiles(files: List<File>, title: String): PlaylistTab? {
-            val audioFiles = files
-                .filter { it.isFile && it.extension.lowercase() in audioExtensions }
-            if (audioFiles.isEmpty()) return null
+        fun fromLocations(locations: List<String>, title: String): PlaylistTab? {
+            val tracks = locations.mapNotNull { location ->
+                if (location.startsWith("http://", ignoreCase = true) ||
+                    location.startsWith("https://", ignoreCase = true)
+                ) {
+                    Track.fromUrl(location)
+                } else {
+                    val file = File(location)
+                    if (file.extension.lowercase() in audioExtensions) Track(file) else null
+                }
+            }
+            if (tracks.isEmpty()) return null
 
-            val paths = audioFiles.map { it.absolutePath }
             return PlaylistTab(
                 title = title,
                 folderPath = null,
-                filePath = paths.first(),
-                filePaths = paths,
-                tracks = audioFiles.map { Track(it) }
+                filePath = tracks.first().path,
+                filePaths = tracks.map { it.path },
+                tracks = tracks
             )
         }
     }
