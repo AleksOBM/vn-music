@@ -1,6 +1,3 @@
-/**
- * @fileName PlayerControls.kt
- */
 package com.example.vnmusic
 
 import androidx.compose.foundation.layout.*
@@ -13,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.github.kdroidfilter.composemediaplayer.audio.AudioPlayerState
 
+@OptIn(ExperimentalMaterial3Api::class) // Для Tooltip
 @Composable
 fun PlayerControls(
     currentTrackName: String?,
@@ -27,7 +25,8 @@ fun PlayerControls(
     onNext: () -> Unit,
     onPrevious: () -> Unit,
     onStop: () -> Unit,
-    onVolumeChange: (Float) -> Unit
+    onVolumeChange: (Float) -> Unit,
+    onChooseFolder: () -> Unit
 ) {
     val isPlaying = playerState == AudioPlayerState.PLAYING
     val isActive = isPlaying || playerState == AudioPlayerState.PAUSED
@@ -38,14 +37,43 @@ fun PlayerControls(
         color = MaterialTheme.colorScheme.surfaceVariant,
         tonalElevation = 2.dp
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text(
-                text = currentTrackName ?: "Не выбран",
-                style = MaterialTheme.typography.titleMedium,
-                maxLines = 1
-            )
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // ЛЕВАЯ ЧАСТЬ
+            Column(modifier = Modifier.weight(1f)) {
+                // Верхняя строка: иконка папки + название трека
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Кнопка выбора папки с подсказкой
+                    TooltipBox(
+                        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                        tooltip = {
+                            PlainTooltip {
+                                Text("Выбрать папку")
+                            }
+                        },
+                        state = rememberTooltipState()
+                    ) {
+                        IconButton(onClick = onChooseFolder) {
+                            Icon(
+                                imageVector = Icons.Default.FolderOpen,
+                                contentDescription = "Выбрать папку",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
 
-            if (duration > 0) {
+                    Spacer(modifier = Modifier.width(4.dp))
+
+                    Text(
+                        text = currentTrackName ?: "Не выбран",
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1
+                    )
+                }
+
+                // Слайдер перемотки (показываем всегда)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = formatTime(position.toLong()),
@@ -54,56 +82,52 @@ fun PlayerControls(
                     CustomSlider(
                         value = position,
                         onValueChange = onPositionChange,
-                        onValueChangeFinished = { newValue -> onSeek(newValue.toLong()) },
-                        valueRange = 0f..duration.toFloat(),
-                        modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
+                        onValueChangeFinished = { onSeek(it.toLong()) },
+                        valueRange = 0f..(if (duration > 0) duration.toFloat() else 1f),
+                        modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+                        enabled = duration > 0
                     )
-
                     Text(
                         text = formatTime(duration),
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
-            } else {
-                Spacer(modifier = Modifier.height(16.dp))
-            }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    onClick = onPrevious,
-                    enabled = hasTracks && currentTrackName != null
+                // Кнопки управления
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.SkipPrevious, contentDescription = "Предыдущий")
-                }
+                    IconButton(
+                        onClick = onPrevious,
+                        enabled = hasTracks && currentTrackName != null
+                    ) {
+                        Icon(Icons.Default.SkipPrevious, contentDescription = "Предыдущий")
+                    }
 
-                IconButton(onClick = onPlayPause, enabled = currentTrackName != null) {
-                    val icon = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow
-                    Icon(icon, contentDescription = "Играть/Пауза")
-                }
+                    IconButton(onClick = onPlayPause, enabled = currentTrackName != null) {
+                        val icon = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow
+                        Icon(icon, contentDescription = "Играть/Пауза")
+                    }
 
-                IconButton(onClick = onNext, enabled = hasTracks && currentTrackName != null) {
-                    Icon(Icons.Default.SkipNext, contentDescription = "Следующий")
-                }
+                    IconButton(onClick = onNext, enabled = hasTracks && currentTrackName != null) {
+                        Icon(Icons.Default.SkipNext, contentDescription = "Следующий")
+                    }
 
-                IconButton(onClick = onStop, enabled = isActive) {
-                    Icon(Icons.Default.Stop, contentDescription = "Стоп")
+                    IconButton(onClick = onStop, enabled = isActive) {
+                        Icon(Icons.Default.Stop, contentDescription = "Стоп")
+                    }
                 }
             }
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Громкость: ", style = MaterialTheme.typography.bodySmall)
-                CustomSlider(
-                    value = volume,
-                    onValueChange = onVolumeChange,
-                    onValueChangeFinished = { /* ничего не делаем */ },
-                    valueRange = 0f..1f,
-                    modifier = Modifier.weight(1f).padding(start = 8.dp)
-                )
-            }
+            // ПРАВАЯ ЧАСТЬ: Вертикальная громкость
+            Spacer(modifier = Modifier.width(8.dp))
+            VerticalVolumeSlider(
+                volume = volume,
+                onVolumeChange = onVolumeChange,
+                modifier = Modifier.width(32.dp)
+            )
         }
     }
 }

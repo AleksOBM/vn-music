@@ -5,11 +5,6 @@ package com.example.vnmusic
 
 import androidx.compose.foundation.draganddrop.dragAndDropTarget
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material3.Button
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
@@ -170,21 +165,11 @@ fun App() {
             onVolumeChange = { value ->
                 volume = value
                 audioState.player.setVolume(value)
-            }
+            },
+            onChooseFolder = { chooseAndLoadFolder() }
         )
 
         Spacer(modifier = Modifier.height(16.dp))
-
-        Button(
-            onClick = { chooseAndLoadFolder() },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Icon(Icons.Default.FolderOpen, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Выбрать папку")
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
 
         TrackList(
             tracks = tracks,
