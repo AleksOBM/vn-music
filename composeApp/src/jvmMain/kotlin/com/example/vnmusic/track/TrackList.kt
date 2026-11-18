@@ -1,7 +1,7 @@
 /**
  * @fileName TrackList.kt
  */
-package com.example.vnmusic
+package com.example.vnmusic.track
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxSize

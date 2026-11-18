@@ -1,4 +1,7 @@
-package com.example.vnmusic
+/**
+ * @fileName VolumeSlider.kt
+ */
+package com.example.vnmusic.sliders
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectVerticalDragGestures

@@ -1,10 +1,11 @@
-package com.example.vnmusic
+package com.example.vnmusic.tabs
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
@@ -14,6 +15,7 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.onPointerEvent
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalComposeUiApi::class)
@@ -32,6 +34,7 @@ fun PlaylistTabs(
     Box(
         modifier = Modifier
             .fillMaxWidth()
+            .padding(vertical = 2.dp)
             .onPointerEvent(PointerEventType.Scroll) { event ->
                 val delta = event.changes.first().scrollDelta.y
                 // Прокручиваем вправо/влево в зависимости от направления колеса
@@ -44,25 +47,38 @@ fun PlaylistTabs(
     ) {
         LazyRow(
             state = listState,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            contentPadding = PaddingValues(horizontal = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             items(tabs.size) { index ->
                 val tab = tabs[index]
                 val isActive = index == activeTabIndex
+                val tabShape = RoundedCornerShape(14.dp)
                 Surface(
-                    shape = MaterialTheme.shapes.small,
+                    shape = tabShape,
                     color = if (isActive) MaterialTheme.colorScheme.primaryContainer
                     else MaterialTheme.colorScheme.surfaceVariant,
-                    modifier = Modifier.clickable { onTabSelected(index) }
+                    modifier = Modifier
+                        .border(
+                            width = 1.dp,
+                            color = if (isActive) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.outline,
+                            shape = tabShape
+                        )
+                        .clickable { onTabSelected(index) }
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
                             text = tab.title,
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.Bold
+                            ),
                             maxLines = 1
                         )
                         Spacer(modifier = Modifier.width(4.dp))

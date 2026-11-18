@@ -1,7 +1,7 @@
 /**
  * @fileName TimeUtils.kt
  */
-package com.example.vnmusic
+package com.example.vnmusic.util
 
 /**
  * Форматирует миллисекунды в строку формата "мм:сс" (например, 125000 -> "02:05").

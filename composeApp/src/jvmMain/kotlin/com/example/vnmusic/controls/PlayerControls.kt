@@ -1,4 +1,7 @@
-package com.example.vnmusic
+/**
+ * @fileName PlayerControls.kt
+ */
+package com.example.vnmusic.controls
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -8,6 +11,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.example.vnmusic.sliders.CustomSlider
+import com.example.vnmusic.sliders.VerticalVolumeSlider
+import com.example.vnmusic.util.formatTime
 import io.github.kdroidfilter.composemediaplayer.audio.AudioPlayerState
 
 @OptIn(ExperimentalMaterial3Api::class)

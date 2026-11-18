@@ -1,7 +1,7 @@
 /**
- * @fileName CustomSlider.kt
+ * @fileName TrackSlider.kt
  */
-package com.example.vnmusic
+package com.example.vnmusic.sliders
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures

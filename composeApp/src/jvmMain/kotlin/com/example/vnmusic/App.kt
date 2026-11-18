@@ -2,18 +2,29 @@ package com.example.vnmusic
 
 import androidx.compose.foundation.draganddrop.dragAndDropTarget
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draganddrop.DragAndDropEvent
 import androidx.compose.ui.draganddrop.DragAndDropTarget
 import androidx.compose.ui.draganddrop.awtTransferable
 import androidx.compose.ui.unit.dp
+import com.example.vnmusic.controls.PlayerControls
+import com.example.vnmusic.track.Track
+import com.example.vnmusic.track.TrackList
+import com.example.vnmusic.tabs.PlaylistTab
+import com.example.vnmusic.tabs.PlaylistTabs
+import com.example.vnmusic.tabs.loadTabs
+import com.example.vnmusic.tabs.saveTabs
 import io.github.kdroidfilter.composemediaplayer.audio.AudioPlayerState
 import io.github.kdroidfilter.composemediaplayer.audio.rememberAudioPlayerLiveState
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.awt.datatransfer.DataFlavor
 import java.io.File
 import javax.swing.JFileChooser
@@ -42,13 +53,22 @@ fun App() {
     var currentTrack by remember { mutableStateOf<Track?>(null) }
     var sliderPosition by remember { mutableStateOf(0f) }
     var autoAdvanced by remember { mutableStateOf(false) }
+    var isSeeking by remember { mutableStateOf(false) }
+    var seekDuration by remember { mutableStateOf(0L) }
+    val seekScope = rememberCoroutineScope()
     val playerState = audioState.state
 
     val activeTab = tabs.getOrNull(activeTabIndex)
 
     LaunchedEffect(audioState.position) {
-        if (playerState == AudioPlayerState.PLAYING || playerState == AudioPlayerState.PAUSED) {
+        if (!isSeeking && (playerState == AudioPlayerState.PLAYING || playerState == AudioPlayerState.PAUSED)) {
             sliderPosition = audioState.position.toFloat()
+        }
+    }
+
+    LaunchedEffect(audioState.duration) {
+        if (audioState.duration > 0) {
+            seekDuration = audioState.duration
         }
     }
 
@@ -56,7 +76,48 @@ fun App() {
         currentTrack = track
         audioState.player.play(track.path)
         sliderPosition = 0f
+        seekDuration = 0L
+        isSeeking = false
         autoAdvanced = false
+    }
+
+    fun seekTrack(ms: Long) {
+        val track = currentTrack ?: return
+        val duration = if (seekDuration > 0) seekDuration else audioState.duration
+        val target = ms.coerceIn(0L, if (duration > 0) duration else ms)
+        val wasPaused = audioState.player.currentPlayerState() == AudioPlayerState.PAUSED
+
+        sliderPosition = target.toFloat()
+        isSeeking = true
+
+        seekScope.launch {
+            if (track.path.substringAfterLast('.', "").lowercase() == "flac") {
+                audioState.player.stop()
+                audioState.player.play(track.path)
+                for (attempt in 0 until 30) {
+                    val state = audioState.player.currentPlayerState()
+                    if (state == AudioPlayerState.PLAYING || state == AudioPlayerState.PAUSED) {
+                        break
+                    }
+                    delay(100)
+                }
+                audioState.player.seekTo(target)
+                delay(80)
+                audioState.player.seekTo(target)
+                if (wasPaused) {
+                    audioState.player.pause()
+                } else {
+                    audioState.player.play()
+                }
+            } else {
+                audioState.player.seekTo(target)
+                delay(80)
+                audioState.player.seekTo(target)
+            }
+            sliderPosition = target.toFloat()
+            delay(120)
+            isSeeking = false
+        }
     }
 
     fun playNext() {
@@ -85,12 +146,42 @@ fun App() {
         }
     }
 
-    fun addTabFromFile(file: File) {
-        val newTab = if (file.isDirectory) PlaylistTab.fromFolder(file)
-        else PlaylistTab.fromFile(file)
+    fun nextPlaylistNumber(): Int = tabs
+        .mapNotNull { tab ->
+            Regex("""Новый плейлист (\d+)""")
+                .matchEntire(tab.title)
+                ?.groupValues
+                ?.get(1)
+                ?.toIntOrNull()
+        }
+        .maxOrNull()
+        ?.plus(1)
+        ?: 1
+
+    fun addTabFromFile(file: File, addToStart: Boolean = false) {
+        val newTab = if (file.isDirectory) {
+            PlaylistTab.fromFolder(file)
+        } else {
+            val playlistNumber = nextPlaylistNumber()
+
+            PlaylistTab.fromFile(file)?.copy(
+                title = "Новый плейлист $playlistNumber"
+            )
+        }
         if (newTab != null) {
-            tabs = tabs + newTab
-            activeTabIndex = tabs.size - 1
+            tabs = if (addToStart) listOf(newTab) + tabs else tabs + newTab
+            activeTabIndex = if (addToStart) 0 else tabs.size - 1
+        }
+    }
+
+    fun addFilesAsPlaylist(files: List<File>) {
+        val newTab = PlaylistTab.fromFiles(
+            files = files,
+            title = "Новый плейлист ${nextPlaylistNumber()}"
+        )
+        if (newTab != null) {
+            tabs = listOf(newTab) + tabs
+            activeTabIndex = 0
         }
     }
 
@@ -113,8 +204,14 @@ fun App() {
                     (transferable.getTransferData(DataFlavor.javaFileListFlavor) as? List<*>)
                         ?.filterIsInstance<File>() ?: emptyList()
                 } catch (_: Exception) { emptyList() }
-                val file = files.firstOrNull() ?: return false
-                addTabFromFile(file)
+                val droppedFolders = files.filter { it.isDirectory }
+                droppedFolders.asReversed().forEach { addTabFromFile(it, addToStart = true) }
+
+                val droppedFiles = files.filter { it.isFile }
+                if (droppedFiles.isNotEmpty()) {
+                    addFilesAsPlaylist(droppedFiles)
+                }
+                if (droppedFolders.isEmpty() && droppedFiles.isEmpty()) return false
                 return true
             }
         }
@@ -133,13 +230,16 @@ fun App() {
         // Панель управления
         PlayerControls(
             currentTrackName = currentTrack?.name,
-            duration = audioState.duration,
+            duration = seekDuration,
             position = sliderPosition,
             playerState = playerState,
             volume = volume,
             hasTracks = activeTab?.tracks?.isNotEmpty() == true,
-            onSeek = { ms -> audioState.player.seekTo(ms) },
-            onPositionChange = { sliderPosition = it },
+            onSeek = ::seekTrack,
+            onPositionChange = { position ->
+                isSeeking = true
+                sliderPosition = position
+            },
             onPlayPause = {
                 when (playerState) {
                     AudioPlayerState.PLAYING -> audioState.player.pause()
@@ -183,11 +283,32 @@ fun App() {
                     }
                 )
 
-                // Разделитель между вкладками и списком песен
-                HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = 15.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant
-                )
+                // Эффектный разделитель между вкладками и списком песен
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    HorizontalDivider(
+                        modifier = Modifier.weight(1f),
+                        thickness = 2.dp,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
+                    )
+                    Surface(
+                        modifier = Modifier
+                            .padding(horizontal = 8.dp)
+                            .size(8.dp),
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primary,
+                        tonalElevation = 4.dp
+                    ) {}
+                    HorizontalDivider(
+                        modifier = Modifier.weight(1f),
+                        thickness = 2.dp,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
+                    )
+                }
 
                 // Список треков активной вкладки
                 TrackList(
