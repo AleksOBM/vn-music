@@ -1,7 +1,7 @@
 /**
  * @fileName Main.kt
  */
-package com.example.vnmusic
+package io.github.aleksobm.vnmusic
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
@@ -28,6 +28,43 @@ import java.awt.Dimension
 import java.io.File
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.milliseconds
+
+fun main() = application {
+    val windowState = rememberWindowState(
+        width = 420.dp,
+        height = 700.dp,
+        position = WindowPosition(Alignment.Center)
+    )
+    val useDarkTheme = remember { mutableStateOf(false) }
+
+    Window(
+        onCloseRequest = ::exitApplication,
+        title = "VN Music",
+        state = windowState,
+        // Используем сгенерированный ресурс
+        icon = painterResource(Res.drawable.app_icon)
+    ) {
+        window.minimumSize = Dimension(350, 500)
+
+        LaunchedEffect(Unit) {
+            while (true) {
+                useDarkTheme.value = withContext(Dispatchers.IO) {
+                    isSystemDarkTheme()
+                }
+                delay(1_000.milliseconds)
+            }
+        }
+
+        MaterialTheme(
+            colorScheme = if (useDarkTheme.value) darkColorScheme()
+            else lightColorScheme()
+        ) {
+            Surface(modifier = Modifier.fillMaxSize()) {
+                App()
+            }
+        }
+    }
+}
 
 private fun gSettingsValue(schema: String, key: String): String? = try {
     ProcessBuilder("gsettings", "get", schema, key)
@@ -101,41 +138,4 @@ private fun isSystemDarkTheme(): Boolean {
     }
 
     return false
-}
-
-fun main() = application {
-    val windowState = rememberWindowState(
-        width = 420.dp,
-        height = 700.dp,
-        position = WindowPosition(Alignment.Center)
-    )
-    val useDarkTheme = remember { mutableStateOf(false) }
-
-    Window(
-        onCloseRequest = ::exitApplication,
-        title = "VN Music",
-        state = windowState,
-        // Используем сгенерированный ресурс
-        icon = painterResource(Res.drawable.app_icon)
-    ) {
-        window.minimumSize = Dimension(350, 500)
-
-        LaunchedEffect(Unit) {
-            while (true) {
-                useDarkTheme.value = withContext(Dispatchers.IO) {
-                    isSystemDarkTheme()
-                }
-                delay(1_000.milliseconds)
-            }
-        }
-
-        MaterialTheme(
-            colorScheme = if (useDarkTheme.value) darkColorScheme()
-            else lightColorScheme()
-        ) {
-            Surface(modifier = Modifier.fillMaxSize()) {
-                App()
-            }
-        }
-    }
 }

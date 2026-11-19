@@ -1,8 +1,8 @@
-package com.example.vnmusic.tabs
+package io.github.aleksobm.vnmusic.tabs
 
-import com.example.vnmusic.track.Track
-import com.example.vnmusic.track.audioExtensions
-import com.example.vnmusic.track.loadTracksFromFolder
+import io.github.aleksobm.vnmusic.track.Track
+import io.github.aleksobm.vnmusic.track.audioExtensions
+import io.github.aleksobm.vnmusic.track.loadTracksFromFolder
 import java.io.File
 
 data class PlaylistTab(

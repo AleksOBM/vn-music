@@ -1,7 +1,7 @@
 /**
  * @fileName TabsFile.kt
  */
-package com.example.vnmusic.tabs
+package io.github.aleksobm.vnmusic.tabs
 
 import java.io.File
 import java.nio.charset.StandardCharsets

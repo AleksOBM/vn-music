@@ -1,7 +1,7 @@
 /**
  * @fileName App.kt
  */
-package com.example.vnmusic
+package io.github.aleksobm.vnmusic
 
 import androidx.compose.foundation.draganddrop.dragAndDropTarget
 import androidx.compose.foundation.layout.*
@@ -16,15 +16,15 @@ import androidx.compose.ui.draganddrop.DragAndDropEvent
 import androidx.compose.ui.draganddrop.DragAndDropTarget
 import androidx.compose.ui.draganddrop.awtTransferable
 import androidx.compose.ui.unit.dp
-import com.example.vnmusic.controls.PlayerControls
-import com.example.vnmusic.tabs.PlaylistTab
-import com.example.vnmusic.tabs.PlaylistTabs
-import com.example.vnmusic.tabs.loadTabs
-import com.example.vnmusic.tabs.saveTabs
-import com.example.vnmusic.track.Track
-import com.example.vnmusic.track.TrackList
-import com.example.vnmusic.track.audioExtensions
-import com.example.vnmusic.track.loadTracksFromFolder
+import io.github.aleksobm.vnmusic.controls.PlayerControls
+import io.github.aleksobm.vnmusic.tabs.PlaylistTab
+import io.github.aleksobm.vnmusic.tabs.PlaylistTabs
+import io.github.aleksobm.vnmusic.tabs.loadTabs
+import io.github.aleksobm.vnmusic.tabs.saveTabs
+import io.github.aleksobm.vnmusic.track.Track
+import io.github.aleksobm.vnmusic.track.TrackList
+import io.github.aleksobm.vnmusic.track.audioExtensions
+import io.github.aleksobm.vnmusic.track.loadTracksFromFolder
 import io.github.kdroidfilter.composemediaplayer.audio.AudioPlayerState
 import io.github.kdroidfilter.composemediaplayer.audio.rememberAudioPlayerLiveState
 import kotlinx.coroutines.delay

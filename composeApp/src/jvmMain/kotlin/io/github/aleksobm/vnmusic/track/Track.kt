@@ -1,7 +1,7 @@
 /**
  * @fileName Track.kt
  */
-package com.example.vnmusic.track
+package io.github.aleksobm.vnmusic.track
 
 import java.io.File
 import java.net.URI

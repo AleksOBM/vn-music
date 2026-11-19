@@ -1,7 +1,7 @@
 /**
  * @fileName TrackList.kt
  */
-package com.example.vnmusic.track
+package io.github.aleksobm.vnmusic.track
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*

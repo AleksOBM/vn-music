@@ -43,11 +43,11 @@ kotlin {
 
 compose.desktop {
     application {
-        mainClass = "com.example.vnmusic.MainKt"
+        mainClass = "io.github.aleksobm.vnmusic.Main.kt"
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "com.example.vnmusic"
+            packageName = "io.github.aleksobm.vnmusic"
             packageVersion = "1.0.0"
         }
     }

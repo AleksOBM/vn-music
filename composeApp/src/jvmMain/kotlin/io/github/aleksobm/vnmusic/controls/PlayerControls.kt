@@ -1,7 +1,7 @@
 /**
  * @fileName PlayerControls.kt
  */
-package com.example.vnmusic.controls
+package io.github.aleksobm.vnmusic.controls
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -15,10 +15,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.example.vnmusic.sliders.CustomSlider
-import com.example.vnmusic.sliders.VerticalVolumeSlider
-import com.example.vnmusic.util.formatTime
-import com.example.vnmusic.util.formatTimeLong
+import io.github.aleksobm.vnmusic.sliders.CustomSlider
+import io.github.aleksobm.vnmusic.sliders.VerticalVolumeSlider
+import io.github.aleksobm.vnmusic.util.formatTime
+import io.github.aleksobm.vnmusic.util.formatTimeLong
 import io.github.kdroidfilter.composemediaplayer.audio.AudioPlayerState
 
 @Composable

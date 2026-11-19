@@ -1,7 +1,7 @@
 /**
  * @fileName PlaylistTabs.kt
  */
-package com.example.vnmusic.tabs
+package io.github.aleksobm.vnmusic.tabs
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
