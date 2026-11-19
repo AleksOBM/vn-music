@@ -25,6 +25,18 @@ kotlin {
             implementation("io.github.kdroidfilter:composemediaplayer-audio:0.11.4")
             implementation(compose.desktop.currentOs)
             implementation(libs.kotlinx.coroutinesSwing)
+
+            val composeVersion = libs.versions.composeMultiplatform.get()
+            listOf(
+                "linux-x64",
+                "linux-arm64",
+                "windows-x64",
+                "windows-arm64",
+                "macos-x64",
+                "macos-arm64"
+            ).forEach { platform ->
+                runtimeOnly("org.jetbrains.compose.desktop:desktop-jvm-$platform:$composeVersion")
+            }
         }
     }
 }

@@ -1,6 +1,21 @@
 # VN Music
 
-This is a Kotlin Multiplatform project targeting Desktop (JVM).
+**Crossplatform desktop audio player**  
+This is a Kotlin Multiplatform project targeting Desktop (JVM).  
+Successfull testing for ubuntu.
+
+### UI screenshots
+
+<details>
+
+<summary>View</summary>
+
+<img alt="screen-light.png" height="500" src=".img/screen-light.png"/>
+<img alt="screen-dark.png" height="500" src=".img/screen-dark.png"/>
+
+</details>
+
+**Use drug-and-drop to add new tracks and playlists**
 
 * [/composeApp](./composeApp/src) is for code that will be shared across your Compose Multiplatform applications.
   It contains several subfolders:
@@ -23,6 +38,25 @@ in your IDE's toolbar or run it directly from the terminal:
   ```shell
   .\gradlew.bat :composeApp:run
   ```
+
+### Build a cross-platform desktop Uber JAR
+
+The Uber JAR includes Compose Desktop native libraries for Linux (x64/ARM64), Windows (x64/ARM64),
+and macOS (x64/ARM64), so it can be copied between these platforms. Build it on macOS/Linux with:
+
+```shell
+./gradlew :composeApp:packageUberJarForCurrentOS
+```
+
+On Windows, run:
+
+```shell
+.\gradlew.bat :composeApp:packageUberJarForCurrentOS
+```
+
+The JAR is written to `composeApp/build/compose/jars/`. It still requires a compatible Java runtime
+on the target machine; use a native distribution instead if you need to bundle Java or provide an
+OS-specific installer.
 
 ---
 
