@@ -4,7 +4,14 @@
 
 VN Music is a desktop audio player built with Kotlin and Compose Multiplatform. It plays local
 MP3, FLAC, OGG, and WAV files, organizes tracks into playlists, and supports Internet radio.
-Add files, folders, or radio stream URLs by dragging them into the app.
+Add files, folders, or radio stream URLs by dragging them into the app. Drop media on the tabs area
+to create a playlist, or on the track list to add it to the active playlist. If a track is already
+in the playlist, VN Music selects it and scrolls it into view.
+
+## Acknowledgements
+
+Audio playback is powered by
+[`io.github.kdroidfilter:composemediaplayer-audio`](https://github.com/kdroidFilter/composeMp3Player).
 
 ## Screenshots
 
