@@ -43,12 +43,23 @@ kotlin {
 
 compose.desktop {
     application {
-        mainClass = "io.github.aleksobm.vnmusic.Main.kt"
+        mainClass = "io.github.aleksobm.vnmusic.MainKt"
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "io.github.aleksobm.vnmusic"
+            packageName = "VN Music"
             packageVersion = "1.0.0"
+            description = "Desktop audio player for local music and Internet radio"
+            vendor = "Aleks O."
+            copyright = "Copyright (c) 2026 Aleks O."
+            licenseFile.set(project.file("../LICENSE.md"))
+
+            linux {
+                packageName = "vnmusic"
+                appCategory = "AudioVideo"
+                shortcut = true
+                iconFile.set(project.file("src/jvmMain/composeResources/drawable/app_icon.png"))
+            }
         }
     }
 }
