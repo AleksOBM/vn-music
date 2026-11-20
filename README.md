@@ -1,63 +1,87 @@
 # VN Music
 
-**Crossplatform desktop audio player**  
-This is a Kotlin Multiplatform project targeting Desktop (JVM).  
-Successfull testing for ubuntu.
+VN Music is a desktop audio player built with Kotlin and Compose Multiplatform. It plays local
+MP3, FLAC, OGG, and WAV files, organizes tracks into playlists, and supports Internet radio.
+Add files, folders, or radio stream URLs by dragging them into the app.
 
-### UI screenshots
+## Screenshots
 
-<details>
+| Light theme | Dark theme |
+|---|---|
+| <img alt="VN Music in light theme" height="400" src=".img/screen-light.png"/> | <img alt="VN Music in dark theme" height="400" src=".img/screen-dark.png"/> |
 
-<summary>View</summary>
+## Get the app
 
-<img alt="screen-light.png" height="500" src=".img/screen-light.png"/>
-<img alt="screen-dark.png" height="500" src=".img/screen-dark.png"/>
+Download a ready-made JAR from the project's **Releases** page when a release is available. If no
+release is published yet, build the JAR from the source code using the instructions below. JAR
+files are build artifacts and are not stored in the source tree.
 
-</details>
+The JAR does not include Java. The current build requires Java 21 or newer; Java 8 cannot run it.
+Check the Java version with:
 
-**Use drug-and-drop to add new tracks and playlists**
+```shell
+java -version
+```
 
-* [/composeApp](./composeApp/src) is for code that will be shared across your Compose Multiplatform applications.
-  It contains several subfolders:
-    - [commonMain](./composeApp/src/commonMain/kotlin) is for code that's common for all targets.
-    - Other folders are for Kotlin code that will be compiled for only the platform indicated in the folder name.
-      For example, if you want to use Apple's CoreCrypto for the iOS part of your Kotlin app,
-      the [iosMain](./composeApp/src/iosMain/kotlin) folder would be the right place for such calls.
-      Similarly, if you want to edit the Desktop (JVM) specific part, the [jvmMain](./composeApp/src/jvmMain/kotlin)
-      folder is the appropriate location.
+## Build and run from source
 
-### Build and Run Desktop (JVM) Application
+Install a compatible JDK, then run these commands from the project root.
 
-To build and run the development version of the desktop app, use the run configuration from the run widget
-in your IDE's toolbar or run it directly from the terminal:
-- on macOS/Linux
-  ```shell
-  ./gradlew :composeApp:run
-  ```
-- on Windows
-  ```shell
-  .\gradlew.bat :composeApp:run
-  ```
+### Run the app directly
 
-### Build a cross-platform desktop Uber JAR
+Linux and macOS:
 
-The Uber JAR includes Compose Desktop native libraries for Linux (x64/ARM64), Windows (x64/ARM64),
-and macOS (x64/ARM64), so it can be copied between these platforms. Build it on macOS/Linux with:
+```shell
+./gradlew :composeApp:run
+```
+
+Windows:
+
+```powershell
+.\gradlew.bat :composeApp:run
+```
+
+This is the easiest option for development. Gradle builds the app and runs it on the current
+machine.
+
+### Build a self-contained (Uber) JAR
+
+Linux and macOS:
 
 ```shell
 ./gradlew :composeApp:packageUberJarForCurrentOS
 ```
 
-On Windows, run:
+Windows:
 
-```shell
+```powershell
 .\gradlew.bat :composeApp:packageUberJarForCurrentOS
 ```
 
-The JAR is written to `composeApp/build/compose/jars/`. It still requires a compatible Java runtime
-on the target machine; use a native distribution instead if you need to bundle Java or provide an
-OS-specific installer.
+The JAR is written to `composeApp/build/compose/jars/`. Its name includes the target OS and
+architecture, for example `io.github.aleksobm.vnmusic-linux-x64-1.0.0.jar`. Run it with:
 
----
+```shell
+java -jar composeApp/build/compose/jars/<jar-file>.jar
+```
 
-Learn more about [Compose Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/compose-multiplatform.html).
+Build on the target operating system to get the matching artifact. The `packageUberJarForCurrentOS`
+task targets the OS where it runs; a JAR built on Linux is not a Windows installer.
+
+### Build a native installer
+
+Native installers bundle a Java runtime and are specific to the target operating system. Build them
+on that OS:
+
+| Target | Command |
+|---|---|
+| Linux (`.deb`) | `./gradlew :composeApp:packageDeb` |
+| Windows (`.msi`) | `.\gradlew.bat :composeApp:packageMsi` |
+| macOS (`.dmg`) | `./gradlew :composeApp:packageDmg` |
+
+The installer is written under `composeApp/build/compose/binaries/`. Installer packaging and
+running it have not been verified on every operating system.
+
+## License
+
+This project is distributed under the MIT License. See [LICENSE.md](LICENSE.md).
