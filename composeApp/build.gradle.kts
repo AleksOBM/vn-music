@@ -54,6 +54,8 @@ compose.desktop {
             copyright = "Copyright (c) 2026 Aleks O."
             licenseFile.set(project.file("../LICENSE.md"))
 
+            modules("java.instrument", "jdk.unsupported", "jdk.accessibility")
+
             linux {
                 packageName = "vnmusic"
                 appCategory = "AudioVideo"
@@ -62,7 +64,7 @@ compose.desktop {
             }
 
             windows {
-                iconFile.set(project.file("src/jvmMain/composeResources/drawable/app_icon.ico"))
+                iconFile.set(project.file("src/jvmMain/resources/app_icon(64х64).ico"))
                 menuGroup = "VN Music"
                 menu = true
             }
