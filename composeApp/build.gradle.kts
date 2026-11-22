@@ -60,6 +60,12 @@ compose.desktop {
                 shortcut = true
                 iconFile.set(project.file("src/jvmMain/composeResources/drawable/app_icon.png"))
             }
+
+            windows {
+                iconFile.set(project.file("src/jvmMain/composeResources/drawable/app_icon.ico"))
+                menuGroup = "VN Music"
+                menu = true
+            }
         }
     }
 }
