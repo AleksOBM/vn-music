@@ -21,6 +21,8 @@ Audio playback is powered by
 
 ## Get the app
 
+check release-page: https://github.com/AleksOBM/vn-music/releases/tag/v1.0.0-alpha
+
 Download a ready-made JAR from the project's **Releases** page when a release is available. If no
 release is published yet, build the JAR from the source code using the instructions below. JAR
 files are build artifacts and are not stored in the source tree.
